@@ -3,6 +3,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "gpio.h"
 #include "lpc40xx.h"
 #include "lpc_peripherals.h"
 
@@ -326,4 +327,15 @@ bool uart__put(uart_e uart, char output_byte, uint32_t timeout_ms) {
   }
 
   return status;
+}
+
+void uart0_init(void) {
+  gpio__construct_with_function(gpio__port_0, 2, gpio__function_1);
+  gpio__construct_with_function(gpio__port_0, 3, gpio__function_1);
+  uart__init(UART__0, clock__get_peripheral_clock_hz(), 115200);
+
+  // Make UART more efficient by backing it with RTOS queues (optional but highly recommended with RTOS)
+  QueueHandle_t tx_queue = xQueueCreate(128, sizeof(char));
+  QueueHandle_t rx_queue = xQueueCreate(32, sizeof(char));
+  uart__enable_queues(UART__0, tx_queue, rx_queue);
 }

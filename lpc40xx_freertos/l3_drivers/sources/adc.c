@@ -1,8 +1,8 @@
 #include <stdint.h>
 
 #include "adc.h"
-
 #include "clock.h"
+#include "gpio.h"
 #include "lpc40xx.h"
 #include "lpc_peripherals.h"
 
@@ -45,4 +45,65 @@ uint16_t adc__get_adc_value(adc_channel_e channel_num) {
   }
 
   return result;
+}
+
+uint16_t adc__get_adc_value_bm(adc_channel_e channel_num) {
+  uint16_t result = 0;
+
+  switch (channel_num) {
+  case ADC__CHANNEL_2:
+    result = (LPC_ADC->DR[2] >> 4);
+    break;
+  case ADC__CHANNEL_4:
+    result = (LPC_ADC->DR[4] >> 4);
+    break;
+  case ADC__CHANNEL_5:
+    result = (LPC_ADC->DR[5] >> 4);
+    break;
+  default:
+    result = 0;
+    break;
+  }
+  result = result & 0xFFF;
+  return result;
+}
+
+void adc__enable_burst_mode(void) {
+  LPC_ADC->CR &= ~(7 << 24); // start to 0
+  LPC_ADC->CR |= (1 << 16);  // in control register, set burst mode to 1,
+}
+
+void adc__configure_io_pin(adc_channel_e channel) {
+  // adc0 channel 2 = 0, 25
+  // adc0 channel 4 = 1, 30
+  // adc0 channel 5 = 1, 31
+
+  switch (channel) {
+  case ADC__CHANNEL_2:
+    LPC_IOCON->P0_25 |= (1 << 0); // set to adc function
+
+    LPC_IOCON->P0_25 &= ~(1 << 7); // reset to analog mode
+    LPC_IOCON->P0_25 &= ~(3 << 3); // disable internal resistors
+    LPC_ADC->CR |= (1 << 2);       // ADC control register, set to activate channel
+    break;
+  case ADC__CHANNEL_4:
+    LPC_IOCON->P1_30 &= ~(7 << 0);
+    LPC_IOCON->P1_30 |= (3 << 0);
+
+    LPC_IOCON->P1_30 &= ~(1 << 7);
+    LPC_IOCON->P1_30 &= ~(3 << 3);
+    LPC_ADC->CR |= (1 << 4);
+    break;
+  case ADC__CHANNEL_5:
+    LPC_IOCON->P1_31 &= ~(7 << 0);
+    LPC_IOCON->P1_31 |= (3 << 0);
+
+    LPC_IOCON->P1_31 &= ~(1 << 7);
+    LPC_IOCON->P1_31 &= ~(3 << 3);
+    LPC_ADC->CR |= (1 << 5);
+    break;
+  default:
+    // invalid channel, do nothing!
+    break;
+  }
 }

@@ -12,11 +12,11 @@ static void blink_task(void *params);
 static void uart_task(void *params);
 
 static void blink_on_startup(gpio_s gpio, int count);
-static void uart0_init(void);
+// static void uart0_init(void);
 
 static gpio_s led0, led1;
 
-int main(void) {
+int main1(void) {
   /// UART initialization is required in order to use <stdio.h> puts, printf() etc; @see system_calls.c
   uart0_init();
 
@@ -86,7 +86,7 @@ static void blink_on_startup(gpio_s gpio, int blinks) {
     gpio__toggle(gpio);
   }
 }
-
+/*
 static void uart0_init(void) {
   // Note: PIN functions are initialized by board_io__initialize() for P0.2(Tx) and P0.3(Rx)
   uart__init(UART__0, clock__get_peripheral_clock_hz(), 115200);
@@ -96,3 +96,4 @@ static void uart0_init(void) {
   QueueHandle_t rx_queue = xQueueCreate(32, sizeof(char));
   uart__enable_queues(UART__0, tx_queue, rx_queue);
 }
+*/

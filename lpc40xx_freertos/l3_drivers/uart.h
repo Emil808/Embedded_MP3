@@ -58,4 +58,6 @@ bool uart__polled_put(uart_e uart, char output_byte);
  */
 bool uart__get(uart_e uart, char *input_byte, uint32_t timeout_ms);
 bool uart__put(uart_e uart, char output_byte, uint32_t timeout_ms);
+
+void uart0_init(void);
 /** @} */

@@ -54,12 +54,13 @@ static void blink_task(void *params) {
   }
 }
 
+// This sends periodic messages over printf() which uses system_calls.c to send them to UART0
 static void uart_task(void *params) {
   TickType_t previous_tick = 0;
   long ticks = 0;
 
   while (true) {
-    // This loop will repeat every 500 ticks, even if the logic below takes variable amount of ticks
+    // This loop will repeat at precise task delay, even if the logic below takes variable amount of ticks
     vTaskDelayUntil(&previous_tick, 2000);
 
     /* Calls to fprintf(stderr, ...) uses polled UART driver, so this entire output will be fully sent out
@@ -67,7 +68,7 @@ static void uart_task(void *params) {
      * This is useful to print information inside of interrupts as you cannot use printf() inside an ISR
      */
     ticks = xTaskGetTickCount();
-    fprintf(stderr, "This is a polled version of the printf using for debugging ... finished in");
+    fprintf(stderr, "This is a polled version of printf used for debugging ... finished in");
     fprintf(stderr, " %lu ticks\n", (xTaskGetTickCount() - ticks));
 
     /* This deposits data to an outgoing queue and doesn't block the CPU
@@ -75,7 +76,7 @@ static void uart_task(void *params) {
      */
     ticks = xTaskGetTickCount();
     printf("This is a more efficient printf ... finished in");
-    printf(" %lu ticks\n", (xTaskGetTickCount() - ticks));
+    printf(" %lu ticks\n\n", (xTaskGetTickCount() - ticks));
   }
 }
 
@@ -96,4 +97,3 @@ static void uart0_init(void) {
   QueueHandle_t rx_queue = xQueueCreate(32, sizeof(char));
   uart__enable_queues(UART__0, tx_queue, rx_queue);
 }
-*/

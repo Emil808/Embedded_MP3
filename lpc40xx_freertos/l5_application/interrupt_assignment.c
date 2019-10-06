@@ -89,7 +89,7 @@ void part2_code(void) {
   xTaskCreate(test_gpio_toggle, "Blink LED", (512U / sizeof(void *)), &led0, 1, NULL);
   vTaskStartScheduler();
 }
-int main3(void) {
+int main2(void) {
 
   // part0_code();
   // part1_code();

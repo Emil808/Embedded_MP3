@@ -330,8 +330,8 @@ bool uart__put(uart_e uart, char output_byte, uint32_t timeout_ms) {
 }
 
 void uart0_init(void) {
-  gpio__construct_with_function(gpio__port_0, 2, gpio__function_1);
-  gpio__construct_with_function(gpio__port_0, 3, gpio__function_1);
+  gpio__construct_with_function(GPIO__PORT_0, 2, GPIO__FUNCTION_1);
+  gpio__construct_with_function(GPIO__PORT_0, 3, GPIO__FUNCTION_1);
   uart__init(UART__0, clock__get_peripheral_clock_hz(), 115200);
 
   // Make UART more efficient by backing it with RTOS queues (optional but highly recommended with RTOS)

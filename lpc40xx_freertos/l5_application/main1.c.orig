@@ -6,12 +6,11 @@
 #include "board_io.h"
 #include "delay.h"
 #include "gpio.h"
-#include "uart.h"
 
 static void blink_task(void *params);
 static void uart_task(void *params);
-
 static void blink_on_startup(gpio_s gpio, int count);
+<<<<<<< HEAD:lpc40xx_freertos/l5_application/main1.c
 // static void uart0_init(void);
 
 static gpio_s led0, led1;
@@ -20,6 +19,12 @@ int main1(void) {
   /// UART initialization is required in order to use <stdio.h> puts, printf() etc; @see system_calls.c
   uart0_init();
 
+=======
+
+static gpio_s led0, led1;
+
+int main(void) {
+>>>>>>> 0c5c2b4cd62d5f16b648cd06de8e6e82f015dc50:lpc40xx_freertos/l5_application/main.c
   // Construct the LEDs and blink a startup sequence
   led0 = board_io__get_led0();
   led1 = board_io__get_led1();
@@ -33,14 +38,7 @@ int main1(void) {
   xTaskCreate(uart_task, "uart", (512U * 8) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 
   puts("Starting RTOS");
-  vTaskStartScheduler();
-
-  /**
-   * vTaskStartScheduler() should never return.
-   *
-   * Otherwise, it returning indicates there is not enough free memory or scheduler was explicitly terminated
-   * CPU will now halt forever at this point.
-   */
+  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
 
   return 0;
 }
@@ -87,6 +85,7 @@ static void blink_on_startup(gpio_s gpio, int blinks) {
     gpio__toggle(gpio);
   }
 }
+<<<<<<< HEAD:lpc40xx_freertos/l5_application/main1.c
 /*
 static void uart0_init(void) {
   // Note: PIN functions are initialized by board_io__initialize() for P0.2(Tx) and P0.3(Rx)
@@ -98,3 +97,5 @@ static void uart0_init(void) {
   uart__enable_queues(UART__0, tx_queue, rx_queue);
 }
 */
+=======
+>>>>>>> 0c5c2b4cd62d5f16b648cd06de8e6e82f015dc50:lpc40xx_freertos/l5_application/main.c

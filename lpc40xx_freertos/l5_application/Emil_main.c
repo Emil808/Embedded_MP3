@@ -79,13 +79,13 @@ void read_adc(void *p) {
 
 void convert_adc_to_pwm(void *p) {
   gpio_s pwm_red = gpio__construct(2, 0);
-  gpio__set_function(pwm_red, gpio__function_1);
+  gpio__set_function(pwm_red, GPIO__FUNCTION_1);
 
   gpio_s pwm_green = gpio__construct(2, 1);
-  gpio__set_function(pwm_green, gpio__function_1);
+  gpio__set_function(pwm_green, GPIO__FUNCTION_1);
 
   gpio_s pwm_blue = gpio__construct(2, 2);
-  gpio__set_function(pwm_blue, gpio__function_1);
+  gpio__set_function(pwm_blue, GPIO__FUNCTION_1);
 
   pwm1__init_single_edge(1000);
 
@@ -109,7 +109,7 @@ void convert_adc_to_pwm(void *p) {
   }
 }
 
-int main(void) {
+int main3(void) {
   adc_value_queue = xQueueCreate(1, sizeof(int));
   RGB_control_init();
   uart_printf__polled(UART__0, "STARTING ADC CONTROL");

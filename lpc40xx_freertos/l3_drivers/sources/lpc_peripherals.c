@@ -1,5 +1,8 @@
 #include "lpc_peripherals.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "lpc40xx.h"
 
 // clang-format off
@@ -17,6 +20,10 @@ static const uint8_t lpc_peripheral_pconp_bit_map[] = {
     [LPC_PERIPHERAL__UART1] = 4,
     [LPC_PERIPHERAL__UART2] = 24,
     [LPC_PERIPHERAL__UART3] = 25,
+
+    [LPC_PERIPHERAL__I2C0] = 7,
+    [LPC_PERIPHERAL__I2C1] = 19,
+    [LPC_PERIPHERAL__I2C2] = 26,
 
     [LPC_PERIPHERAL__SSP0] = 21,
     [LPC_PERIPHERAL__SSP1] = 10,
@@ -96,6 +103,8 @@ static function__void_f lpc_peripheral__isr_registrations[32 + 9] = {
  * This is registered by the startup code and registered as the interrupt callback for each peripheral
  */
 void lpc_peripheral__interrupt_dispatcher(void) {
+  vRunTimeStatIsrEntry();
+
   /* Get the IRQ number we are in.  Note that ICSR's real ISR bits are offset by 16.
    * We can read ICSR register too, but let's just read 8-bits directly.
    */
@@ -109,6 +118,8 @@ void lpc_peripheral__interrupt_dispatcher(void) {
   static volatile int memory_write_to_avoid_spurious_interrupt;
   memory_write_to_avoid_spurious_interrupt = 0;
   (void)memory_write_to_avoid_spurious_interrupt; // Avoid 'variable set but not used' warning
+
+  vRunTimeStatIsrExit();
 }
 
 void lpc_peripheral__turn_on_power_to(lpc_peripheral_e peripheral) {

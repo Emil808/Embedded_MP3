@@ -7,9 +7,9 @@
 static void cli__task_list_print(sl_string_t user_input_minus_command_name, app_cli__print_string_function cli_output);
 #endif
 
-app_cli_status_e cli__hello(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
-                            app_cli__print_string_function cli_output) {
-  cli_output(argument, "hello back\n");
+app_cli_status_e cli__crash_me(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
+                               app_cli__print_string_function cli_output) {
+  *((uint32_t *)NULL) = 0xDEADBEEF;
   return APP_CLI_STATUS__SUCCESS;
 }
 
@@ -76,61 +76,25 @@ app_cli_status_e cli__task_list(app_cli__argument_t argument, sl_string_t user_i
 }
 #endif /* configUSE_TRACE_FACILITY */
 
+// todo: make this more robust,
+// state what task was supsended
+// state if task does not exist
 app_cli_status_e cli__suspend(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
                               app_cli__print_string_function cli_output) {
 
   sl_string_t task_name = user_input_minus_command_name;
-  bool task_exist = false;
   void *unused_cli_param = NULL;
-  const unsigned portBASE_TYPE max_tasks = 10;
-  TaskStatus_t status[max_tasks];
-  const unsigned portBASE_TYPE task_count = uxTaskGetSystemState(&status[0], max_tasks, NULL);
 
-  // check task_name against task list
-  for (unsigned i = 0; i < task_count; i++) {
-    const TaskStatus_t *task = &status[i];
-    if (task->pcTaskName == task_name) {
-      task_exist = true;
-      vTaskSuspend(task->xHandle);
-      // TODO: handle case if handle was not initialized in xTaskCreate
-      sl_string__printf(argument, "Suspending %10s\n", task->pcTaskName);
-      cli_output(unused_cli_param, argument);
-    }
-  }
-  if (!task_exist) {
-    sl_string__printf(argument, "Task of name <%10s> does not exist. Use task_list for a list of available tasks\n",
-                      task_name);
-    cli_output(unused_cli_param, argument);
+  TaskHandle_t task_handle = xTaskGetHandle(task_name);
+  if (NULL == task_handle) {
+    sl_string__insert_at(task_name, 0, "Could not find a task with name: ");
+    cli_output(unused_cli_param, task_name);
+  } else {
+    vTaskSuspend(task_handle);
+    sl_string__insert_at(task_name, 0, "Suspended ");
+    cli_output(unused_cli_param, task_name);
   }
   return APP_CLI_STATUS__SUCCESS;
 }
 
-app_cli_status_e cli__resume(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
-                             app_cli__print_string_function cli_output) {
-
-  sl_string_t task_name = user_input_minus_command_name;
-  bool task_exist = false;
-
-  void *unused_cli_param = NULL;
-  const unsigned portBASE_TYPE max_tasks = 10;
-  TaskStatus_t status[max_tasks];
-  const unsigned portBASE_TYPE task_count = uxTaskGetSystemState(&status[0], max_tasks, NULL);
-
-  // check task_name against task list
-  for (unsigned i = 0; i < task_count; i++) {
-    const TaskStatus_t *task = &status[i];
-    if (task->pcTaskName == task_name) {
-      task_exist = true;
-      vTaskResume(task->xHandle);
-      // TODO: handle case if handle was not initialized in xTaskCreate
-      sl_string__printf(argument, "Resuming %10s\n", task->pcTaskName);
-      cli_output(unused_cli_param, argument);
-    }
-  }
-  if (!task_exist) {
-    sl_string__printf(argument, "Task of name <%10s> does not exist. Use task_list for a list of available tasks\n",
-                      task_name);
-    cli_output(unused_cli_param, argument);
-  }
-  return APP_CLI_STATUS__SUCCESS;
-}
+// todo: make a cli__resume

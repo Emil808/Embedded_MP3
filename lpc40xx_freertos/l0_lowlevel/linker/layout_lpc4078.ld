@@ -1,72 +1,55 @@
-/*
- * GENERATED FILE - DO NOT EDIT
- * (c) Code Red Technologies Ltd, 2008-2013
- * (c) NXP Semiconductors 2013-2018
- * Generated linker script file for LPC4078
- * Created from linkscript.ldt by FMCreateLinkLibraries
- * Using Freemarker v2.3.23
- * LPCXpresso v8.2.2 [Build 650] [2016-09-09]  on Jun 3, 2018 12:50:46 AM
+/**
+ * References:
+ * - https://sourceware.org/binutils/docs/ld/Basic-Script-Concepts.html#Basic-Script-Concepts
+ * - https://arobenko.gitbooks.io/bare_metal_cpp/content/
  */
 
 MEMORY
 {
-  /* Define each memory region */
-  /* 512kB (alias Flash) */
-  MFlash512 (rx) : ORIGIN = 0, LENGTH = 512K
-  /* 64kB (alias RAM) */
-  RamLoc64 (rwx) : ORIGIN = 0x10000000, LENGTH = 0x10000
-  /* 32kB (alias RAM2) */
-  RamPeriph32 (rwx) : ORIGIN = 0x20000000, LENGTH = 0x8000
+  flash_512k (rx) : ORIGIN = 0x00000000, LENGTH = 512K
+  ram_64k (rwx)   : ORIGIN = 0x10000000, LENGTH = 64K   /* Main RAM       */
+  ram_32k (rwx)   : ORIGIN = 0x20000000, LENGTH = 32K   /* Peripheral RAM */
 }
 
-  /* Define a symbol for the top of each memory region */
-  __base_MFlash512 = 0x0  ; /* MFlash512 */
-  __base_Flash = 0x0 ; /* Flash */
-  __top_MFlash512 = 0x0 + 0x80000 ; /* 512K bytes */
-  __top_Flash = 0x0 + 0x80000 ; /* 512K bytes */
+/*************************************************
+                                                  *
+     64K RAM +-----Stack Top   +-----+ 32K RAM    *
+             |    ||           |     |            *
+             |    \/           |     |            *
+             |     |           |     |            *
+             |     |           |     |            *
+             |    /\ heap      |    /\            *
+             |    || overflow  |    ||            *
+             .-----.           +-----Heap Start   *
+             |bbbbb|           0x2000000          *
+             |bbbbb| *bss                         *
+             .-----.                              *
+             |ddddd|                              *
+             |ddddd| *data                        *
+             .-----.                              *
+            0x1000000                             *
+                                                  *
+**************************************************
+*/
 
-  __base_RamLoc64 = 0x10000000  ; /* RamLoc64 */
-  __base_RAM = 0x10000000 ; /* RAM */
-  __top_RamLoc64 = 0x10000000 + 0x10000 ; /* 64K bytes */
-  __top_RAM = 0x10000000 + 0x10000 ; /* 64K bytes */
-  __base_RamPeriph32 = 0x20000000  ; /* RamPeriph32 */
+/* Define a symbol for the top of each memory region */
+__base_flash     = ORIGIN(flash_512k);
+__top_flash      = __base_flash + LENGTH(flash_512k);
 
-  __base_RAM2 = 0x20000000 ; /* RAM2 */
-  __top_RamPeriph32 = 0x20000000 + 0x8000 ; /* 32K bytes */
-  __top_RAM2 = 0x20000000 + 0x8000 ; /* 32K bytes */
-  __user_heap_base = __base_RAM2 ; /* SJSU-Dev2: RAM2 is solely for heap */
+__base_ram_64k  = ORIGIN(ram_64k);
+__top_ram_64k   = __base_ram_64k + LENGTH(ram_64k);
+
+__base_ram_32k = ORIGIN(ram_32k);
+__top_ram_32k  = __base_ram_32k + LENGTH(ram_32k);
 
 ENTRY(entry_point)
 
 SECTIONS
 {
-    /* MAIN TEXT SECTION */
     .text : ALIGN(4)
     {
         FILL(0xff)
-        __vectors_start__ = ABSOLUTE(.) ;
         KEEP(*(.interrupt_vector_table))
-        /* Global Section Table */
-        . = ALIGN(4) ;
-        section_table_start = .;
-        data_section_table = .;
-        LONG(LOADADDR(.data));
-        LONG(    ADDR(.data));
-        LONG(  SIZEOF(.data));
-        LONG(LOADADDR(.data_RAM2));
-        LONG(    ADDR(.data_RAM2));
-        LONG(  SIZEOF(.data_RAM2));
-        data_section_table_end = .;
-        bss_section_table = .;
-        LONG(    ADDR(.bss));
-        LONG(  SIZEOF(.bss));
-        LONG(    ADDR(.bss_RAM2));
-        LONG(  SIZEOF(.bss_RAM2));
-        bss_section_table_end = .;
-        section_table_end = . ;
-      /* End of Global Section Table */
-
-        *(.after_vectors*)
 
         /* C++ constructors etc */
         . = ALIGN(4);
@@ -97,14 +80,14 @@ SECTIONS
         KEEP (*(SORT(.dtors.*)))
         KEEP (*crtend.o(.dtors))
         /* End C++ */
-    } >MFlash512
+    } >flash_512k
 
     .text : ALIGN(4)
     {
         *(.text*)
         *(.rodata .rodata.* .constdata .constdata.*)
         . = ALIGN(4);
-    } > MFlash512
+    } > flash_512k
 
     /*
      * for exception handling/unwind - some Newlib functions (in common
@@ -113,106 +96,55 @@ SECTIONS
     .ARM.extab : ALIGN(4)
     {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
-    } > MFlash512
+    } > flash_512k
     __exidx_start = .;
 
     .ARM.exidx : ALIGN(4)
     {
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-    } > MFlash512
+    } > flash_512k
     __exidx_end = .;
 
     _etext = .;
 
-    /* DATA section for RamPeriph32 */
-    .data_RAM2 : ALIGN(4)
-    {
-        FILL(0xff)
-        PROVIDE(__start_data_RAM2 = .) ;
-        *(.ramfunc.$RAM2)
-        *(.ramfunc.$RamPeriph32)
-        *(.data.$RAM2*)
-        *(.data.$RamPeriph32*)
-        . = ALIGN(4) ;
-        PROVIDE(__end_data_RAM2 = .) ;
-     } > RamPeriph32 AT>MFlash512
-
-    /* MAIN DATA SECTION */
-    .uninit_RESERVED : ALIGN(4)
-    {
-        KEEP(*(.bss.$RESERVED*))
-        . = ALIGN(4) ;
-        _end_uninit_RESERVED = .;
-    } > RamLoc64
-
-    /* Main DATA section (RamLoc64) */
+    /* DATA section */
     .data : ALIGN(4)
     {
        FILL(0xff)
-       _data = . ;
-       *(vtable)
-       *(.ramfunc*)
        *(.data*)
        . = ALIGN(4) ;
-       PROVIDE(_edata = .);
-    } > RamLoc64 AT>MFlash512
+       PROVIDE(_data_end = .);
+    } > ram_64k AT>flash_512k
 
-    /* BSS section for RamPeriph32 */
-    .bss_RAM2 : ALIGN(4)
-    {
-       PROVIDE(__start_bss_RAM2 = .) ;
-       *(.bss.$RAM2*)
-       *(.bss.$RamPeriph32*)
-       . = ALIGN (. != 0 ? 4 : 1) ; /* avoid empty segment */
-       PROVIDE(__end_bss_RAM2 = .) ;
-    } > RamPeriph32
-
-    /* MAIN BSS SECTION */
+    /* BSS SECTION */
     .bss : ALIGN(4)
     {
-        _bss = .;
+        _bss_start = .;
         *(.bss*)
         *(COMMON)
         . = ALIGN(4) ;
-        PROVIDE(_ebss = .);
+        PROVIDE(_bss_end = .);
         PROVIDE(end = .);
-    } > RamLoc64
+    } > ram_64k
 
-    /* NOINIT section for RamPeriph32 */
-    .noinit_RAM2 (NOLOAD) : ALIGN(4)
+    /* At this point, we have un-used RAM after the BSS and DATA section all the way to the top */
+    PROVIDE(__start_of_unused_ram64 = .);
+    PROVIDE(__end_of_unused_ram64 = __top_ram_64k);
+
+    /* PERSISTENT RAM section for ram_32k */
+    .persistent_ram2 (NOLOAD) : ALIGN(4)
     {
-       *(.noinit.$RAM2*)
-       *(.noinit.$RamPeriph32*)
+        *(.persistent_ram)
        . = ALIGN(4) ;
-    } > RamPeriph32
+    } > ram_32k
 
-    /* DEFAULT NOINIT SECTION */
-    .noinit (NOLOAD): ALIGN(4)
-    {
-        _noinit = .;
-        *(.noinit*)
-         . = ALIGN(4) ;
-        _end_noinit = .;
-    } > RamLoc64
-
-    PROVIDE(heap = DEFINED(__user_heap_base) ? __user_heap_base : .);
-    PROVIDE(heap_end = __top_RAM2);
-    PROVIDE(StackTop = DEFINED(__user_stack_top) ? __user_stack_top : __top_RamLoc64 - 0);
+    /* Heap starts at the beginning of ram2 after any entities that occupy the beginning of ram2 such as persistent_ram */
+    PROVIDE(_heap_start = .);
+    PROVIDE(_heap_end = __top_ram_32k);
 }
 
-PROVIDE(_bheap = heap);
-PROVIDE(_eheap = heap_end);
-
-PROVIDE(_estack = StackTop);
+/* Stack is at the top of RAM64 unless explicitly defined by the user */
+PROVIDE(_estack = DEFINED(__user_stack_top) ? __user_stack_top : __top_ram_64k);
 
 PROVIDE(_bdata_lma = LOADADDR(.data));
 PROVIDE(_bdata_vma = ADDR(.data));
-
-PROVIDE(_bdata_lma_peripheral = LOADADDR(.data_RAM2));
-PROVIDE(_bdata_vma_peripheral = ADDR(.data_RAM2));
-PROVIDE(_edata_peripheral = __end_data_RAM2);
-
-PROVIDE(_bbss = _bss);
-
-PROVIDE(_bbss_peripheral = __start_bss_RAM2);
-PROVIDE(_ebss_peripheral = __end_bss_RAM2);

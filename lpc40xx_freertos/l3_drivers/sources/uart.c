@@ -16,10 +16,6 @@ typedef LPC_UART_TypeDef lpc_uart;
  */
 typedef struct {
   lpc_uart *registers;
-  lpc_peripheral_e peripheral_id;
-  function__void_f isr_callback;
-  bool initialized;
-
   QueueHandle_t queue_transmit;
   QueueHandle_t queue_receive;
 } uart_s;
@@ -47,11 +43,15 @@ static void uart__isr_common(uart_s *uart_type); ///< Common function for all UA
  * but these extra registers are at the end of the memory map that matches with UART0
  */
 static uart_s uarts[] = {
-    {(lpc_uart *)LPC_UART0, LPC_PERIPHERAL__UART0, uart0_isr},
-    {(lpc_uart *)LPC_UART1, LPC_PERIPHERAL__UART1, uart1_isr},
-    {(lpc_uart *)LPC_UART2, LPC_PERIPHERAL__UART2, uart2_isr},
-    {(lpc_uart *)LPC_UART3, LPC_PERIPHERAL__UART3, uart3_isr},
+    {(lpc_uart *)LPC_UART0},
+    {(lpc_uart *)LPC_UART1},
+    {(lpc_uart *)LPC_UART2},
+    {(lpc_uart *)LPC_UART3},
 };
+
+static void (*const uart__isrs[])(void) = {uart0_isr, uart1_isr, uart2_isr, uart3_isr};
+static const lpc_peripheral_e uart_peripheral_ids[] = {LPC_PERIPHERAL__UART0, LPC_PERIPHERAL__UART1,
+                                                       LPC_PERIPHERAL__UART2, LPC_PERIPHERAL__UART3};
 
 /*******************************************************************************
  *
@@ -99,7 +99,7 @@ static bool uart__clear_receive_fifo(uart_s *uart_type) {
    * While receive Hardware FIFO not empty, keep queuing the data. Even if xQueueSendFromISR()
    * fails (Queue is full), we still need to read RBR register otherwise interrupt will not clear
    */
-  while ((uart_type->registers->LSR & char_available_bitmask)) {
+  while (uart_type->registers->LSR & char_available_bitmask) {
     const char received_byte = uart_type->registers->RBR;
     xQueueSendFromISR(uart_type->queue_receive, &received_byte, &higher_priority_task_woke);
 
@@ -111,8 +111,9 @@ static bool uart__clear_receive_fifo(uart_s *uart_type) {
   return context_switch_required;
 }
 
-void uart__enable_receive_and_transmit_interrupts(uart_s *uart_type) {
-  lpc_peripheral__enable_interrupt(uart_type->peripheral_id, uart_type->isr_callback);
+static void uart__enable_receive_and_transmit_interrupts(uart_e uart) {
+  uart_s *uart_type = &uarts[uart];
+  lpc_peripheral__enable_interrupt(uart_peripheral_ids[uart], uart__isrs[uart]);
 
   const uint32_t enable_rx_tx_fifo = (1 << 0) | (1 << 6);
   const uint32_t reset_rx_tx_fifo = (1 << 1) | (1 << 2);
@@ -168,35 +169,33 @@ static void uart__isr_common(uart_s *uart_type) {
  ******************************************************************************/
 
 void uart__init(uart_e uart, uint32_t peripheral_clock, uint32_t baud_rate) {
-  if (!uart__is_initialized(uart)) {
-    lpc_peripheral__turn_on_power_to(uarts[uart].peripheral_id);
+  lpc_peripheral__turn_on_power_to(uart_peripheral_ids[uart]);
 
-    const float roundup_offset = 0.5;
-    const uint16_t divider = (uint16_t)((peripheral_clock / (16 * baud_rate)) + roundup_offset);
-    const uint8_t dlab_bit = (1 << 7);
-    const uint8_t eight_bit_datalen = 3;
+  const float roundup_offset = 0.5;
+  const uint16_t divider = (uint16_t)((peripheral_clock / (16 * baud_rate)) + roundup_offset);
+  const uint8_t dlab_bit = (1 << 7);
+  const uint8_t eight_bit_datalen = 3;
 
-    // 2-stop bits helps improve baud rate error; you can remove this if bandwidth is critical to you
-    const uint8_t stop_bits_is_2 = (1 << 2);
+  // 2-stop bits helps improve baud rate error; you can remove this if bandwidth is critical to you
+  const uint8_t stop_bits_is_2 = (1 << 2);
 
-    lpc_uart *uart_regs = uarts[uart].registers;
+  lpc_uart *uart_regs = uarts[uart].registers;
 
-    uart_regs->LCR = dlab_bit; // Set DLAB bit to access DLM & DLL
-    uart_regs->DLM = (divider >> 8) & 0xFF;
-    uart_regs->DLL = (divider >> 0) & 0xFF;
+  uart_regs->LCR = dlab_bit; // Set DLAB bit to access DLM & DLL
+  uart_regs->DLM = (divider >> 8) & 0xFF;
+  uart_regs->DLL = (divider >> 0) & 0xFF;
 
-    /* Bootloader uses Uart0 fractional dividers and can wreck havoc in our baud rate code, so re-initialize it
-     * Lesson learned: DO NOT RELY ON RESET VALUES
-     */
-    const uint32_t default_reset_fdr_value = (1 << 4);
-    uart_regs->FDR = default_reset_fdr_value;
-    uart_regs->LCR = eight_bit_datalen | stop_bits_is_2; // DLAB is reset back to zero also
-
-    uarts[uart].initialized = true;
-  }
+  /* Bootloader uses Uart0 fractional dividers and can wreck havoc in our baud rate code, so re-initialize it
+   * Lesson learned: DO NOT RELY ON RESET VALUES
+   */
+  const uint32_t default_reset_fdr_value = (1 << 4);
+  uart_regs->FDR = default_reset_fdr_value;
+  uart_regs->LCR = eight_bit_datalen | stop_bits_is_2; // DLAB is reset back to zero also
 }
 
-bool uart__is_initialized(uart_e uart) { return uarts[uart].initialized; }
+bool uart__is_initialized(uart_e uart) {
+  return lpc_peripheral__is_powered_on(uart_peripheral_ids[uart]) && (0 != uarts[uart].registers->LCR);
+}
 
 bool uart__is_transmit_queue_initialized(uart_e uart) { return uart__is_transmit_queue_enabled(uart); }
 
@@ -220,7 +219,7 @@ bool uart__enable_queues(uart_e uart, QueueHandle_t queue_receive, QueueHandle_t
     // Enable peripheral_id interrupt if all is well
     status = uart__is_receive_queue_enabled(uart) && uart__is_transmit_queue_enabled(uart);
     if (status) {
-      uart__enable_receive_and_transmit_interrupts(uart_type);
+      uart__enable_receive_and_transmit_interrupts(uart);
     }
   }
 
@@ -260,6 +259,8 @@ bool uart__polled_put(uart_e uart, char output_byte) {
   lpc_uart *uart_regs = uarts[uart].registers;
 
   if (uart__is_initialized(uart)) {
+    status = true;
+
     // Wait for any prior transmission to complete
     uart__wait_for_transmit_to_complete(uart_regs);
     uart_regs->THR = output_byte;

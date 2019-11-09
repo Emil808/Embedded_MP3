@@ -36,15 +36,22 @@ void sj2_cli__init(void) {
 
   static app_cli__command_s suspend = {.command_name = "suspend",
                                        .help_message_for_command =
-                                           "Suspends named tasks. To see available tasks use tasklist. "
+                                           "Suspends named tasks. To see available tasks use tasklist.\n"
                                            "usage: suspend <task name>",
                                        .app_cli_handler = cli__suspend};
+
+  static app_cli__command_s resume = {.command_name = "resume",
+                                      .help_message_for_command =
+                                          "Resumes named tasks. To see available tasks use tasklist.\n"
+                                          "usage: resume <task name>",
+                                      .app_cli_handler = cli__resume};
 
   // Add your CLI commands in descending sorted order
   app_cli__add_command_handler(&sj2_cli_struct, &task_list);
   app_cli__add_command_handler(&sj2_cli_struct, &i2c);
   app_cli__add_command_handler(&sj2_cli_struct, &crash);
   app_cli__add_command_handler(&sj2_cli_struct, &suspend);
+  app_cli__add_command_handler(&sj2_cli_struct, &resume);
 
   // In case other tasks are hogging the CPU, it would be useful to run the CLI
   // at high priority to at least be able to see what is going on

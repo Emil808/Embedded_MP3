@@ -7,6 +7,8 @@
 #include "common_macros.h"
 #include "delay.h"
 #include "gpio.h"
+#include "i2c.h"
+#include "i2c_slave.h"
 #include "sj2_cli.h"
 
 static void blink_task(void *params);
@@ -15,11 +17,47 @@ static void blink_on_startup(gpio_s gpio, int count);
 
 static gpio_s led0, led1;
 
-int main7(void) {
+volatile char slave_memory[256];
+
+bool i2c__slave_send_data_to_master(uint8_t memory_index, volatile uint32_t *memory) {
+
+  if (memory_index < 256) {
+    *memory = slave_memory[memory_index];
+    return true;
+  }
+  // memory index invalid, don't save, return false
+  else
+    return false;
+}
+
+bool i2c__slave_receive_data_from_master(uint8_t memory_index, uint8_t memory_value) {
+  if (memory_index < 256) {
+    slave_memory[memory_index] = memory_value;
+    return true;
+  } else
+    return false;
+}
+
+void i2c__slave_receive_index_from_master(uint8_t *index, uint8_t index_value) { *index = index_value; }
+
+int main(void) {
   // Construct the LEDs and blink a startup sequence
   led0 = board_io__get_led0();
   led1 = board_io__get_led1();
   blink_on_startup(led1, 2);
+
+  // pin set up for master and slave devices
+  gpio__construct_with_function(GPIO__PORT_0, 10, GPIO__FUNCTION_2);
+  gpio__construct_with_function(GPIO__PORT_0, 11, GPIO__FUNCTION_2);
+  LPC_IOCON->P0_10 &= ~(3 << 3);
+  LPC_IOCON->P0_11 &= ~(3 << 3);
+  LPC_IOCON->P0_10 |= (1 << 10);
+  LPC_IOCON->P0_11 |= (1 << 10);
+
+  // only for slave device
+
+  i2c__slave_init(I2C__2, 0x40);
+  slave_memory[0] = 5;
 
   xTaskCreate(blink_task, "led0", configMINIMAL_STACK_SIZE, (void *)&led0, PRIORITY_LOW, NULL);
   xTaskCreate(blink_task, "led1", configMINIMAL_STACK_SIZE, (void *)&led1, PRIORITY_LOW, NULL);
@@ -31,6 +69,7 @@ int main7(void) {
   xTaskCreate(uart_task, "uart", (512U * 8) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 #else
   sj2_cli__init();
+
   UNUSED(uart_task); // uart_task is un-used in if we are doing cli init()
 #endif
 
@@ -42,10 +81,17 @@ int main7(void) {
 
 static void blink_task(void *params) {
   const gpio_s led = *((gpio_s *)params);
-
+  slave_memory[0] = 1;
   // Warning: This task starts with very minimal stack, so do not use printf() API here to avoid stack overflow
   while (true) {
-    gpio__toggle(led);
+    // gpio__toggle(led);
+
+    if (slave_memory[0]) {
+      gpio__toggle(led);
+    } else {
+      gpio__set(led);
+    }
+
     vTaskDelay(500);
   }
 }

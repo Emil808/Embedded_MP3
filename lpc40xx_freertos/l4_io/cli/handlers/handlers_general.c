@@ -76,9 +76,6 @@ app_cli_status_e cli__task_list(app_cli__argument_t argument, sl_string_t user_i
 }
 #endif /* configUSE_TRACE_FACILITY */
 
-// todo: make this more robust,
-// state what task was supsended
-// state if task does not exist
 app_cli_status_e cli__suspend(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
                               app_cli__print_string_function cli_output) {
 
@@ -97,4 +94,20 @@ app_cli_status_e cli__suspend(app_cli__argument_t argument, sl_string_t user_inp
   return APP_CLI_STATUS__SUCCESS;
 }
 
-// todo: make a cli__resume
+app_cli_status_e cli__resume(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
+                             app_cli__print_string_function cli_output) {
+
+  sl_string_t task_name = user_input_minus_command_name;
+  void *unused_cli_param = NULL;
+
+  TaskHandle_t task_handle = xTaskGetHandle(task_name);
+  if (NULL == task_handle) {
+    sl_string__insert_at(task_name, 0, "Could not find a task with name: ");
+    cli_output(unused_cli_param, task_name);
+  } else {
+    vTaskResume(task_handle);
+    sl_string__insert_at(task_name, 0, "Resuming ");
+    cli_output(unused_cli_param, task_name);
+  }
+  return APP_CLI_STATUS__SUCCESS;
+}

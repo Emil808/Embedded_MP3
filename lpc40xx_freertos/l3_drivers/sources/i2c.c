@@ -153,14 +153,6 @@ void i2c__initialize(i2c_e i2c_number, uint32_t desired_i2c_bus_speed_in_hz, uin
   lpc_peripheral__enable_interrupt(peripheral_id, isrs[i2c_number]);
 }
 
-void i2c__slave_init(i2c_e i2c_number, uint8_t desired_slave_address) {
-
-  i2c_s *i2c = &i2c_structs[i2c_number];
-  LPC_I2C_TypeDef *lpc_i2c = i2c->registers;
-  lpc_i2c->ADR0 = lpc_i2c->ADR1 = lpc_i2c->ADR2 = lpc_i2c->ADR3 = desired_slave_address & 0xFF;
-  lpc_i2c->CONSET = 0x44;
-}
-
 bool i2c__detect(i2c_e i2c_number, uint8_t slave_address) {
   // The I2C State machine will not continue after 1st state when length is set to 0
   const size_t zero_bytes = 0;
@@ -402,72 +394,6 @@ static bool i2c__handle_state_machine(i2c_s *i2c) {
     // We should not issue stop() in this condition, but we still need to end our  transaction.
     stop_sent = true;
     i2c->error_code = lpc_i2c->STAT;
-    break;
-
-  case I2C__STATE_SR_OWN_ADDR_W_ACK:
-    // Slave is now addresed, will receive base register address
-    i2c__slave_receive_index_from_master(&i2c->index, lpc_i2c->DAT);
-
-    i2c__set_ack_flag(lpc_i2c);
-
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-
-  case I2C__STATE_SR_MASTER_DATA_ACK:
-    // receiving data
-
-    if (i2c__slave_receive_data_from_master(i2c->index, lpc_i2c->DAT)) {
-      i2c->index = i2c->index + 1;
-      i2c__set_ack_flag(lpc_i2c);
-    } else {
-      i2c__set_nack_flag(lpc_i2c);
-    }
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-
-  case I2C__STATE_S_STOP_REPEAT:
-    i2c__set_ack_flag(lpc_i2c);
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-
-  case I2C__STATE_ST_OWN_ADDR_R_ACK:
-
-    if (i2c__slave_send_data_to_master(i2c->index, &lpc_i2c->DAT)) {
-      i2c->index = i2c->index + 1;
-      i2c__set_ack_flag(lpc_i2c);
-    }
-    if (i2c->index == 255) {
-      i2c__set_nack_flag(lpc_i2c);
-    }
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-
-  case I2C_STATE_ST_DATA_SENT_ACK:
-
-    i2c__slave_send_data_to_master(i2c->index, &lpc_i2c->DAT);
-    i2c->index = i2c->index + 1;
-    if (i2c->index == 255) { // next byte shall be the last byte to send
-      i2c__set_nack_flag(lpc_i2c);
-    } else { // continue sending bytes;
-      i2c__set_ack_flag(lpc_i2c);
-    }
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-
-  case I2C_STATE_ST_DATA_SENT_NACK:
-    i2c__set_ack_flag(lpc_i2c);
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-
-  case I2C_STATE_ST_LAST_DATA_SENT_ACK:
-    i2c__set_ack_flag(lpc_i2c);
-    i2c__clear_start_flag(lpc_i2c);
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-
-  case I2C__STATE_SR_MASTER_DATA_NACK:
-    i2c__set_ack_flag(lpc_i2c);
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
     break;
 
   case I2C__STATE_MT_SLAVE_ADDR_NACK: // no break

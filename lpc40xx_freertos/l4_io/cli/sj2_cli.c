@@ -1,11 +1,9 @@
-#include <stdio.h>
-
 #include "FreeRTOS.h"
-#include "task.h"
-
 #include "app_cli.h"
 #include "cli_handlers.h"
 #include "common_macros.h"
+#include "task.h"
+#include <stdio.h>
 
 /// Output all CLI to the standard output
 static void sj2_cli__output_function(app_cli__argument_t argument, const char *string);
@@ -46,12 +44,27 @@ void sj2_cli__init(void) {
                                           "usage: resume <task name>",
                                       .app_cli_handler = cli__resume};
 
+  static app_cli__command_s play = {.command_name = "play",
+                                    .help_message_for_command =
+                                        "Sends <song name>.mp3 to SD Reader Queue\n"
+                                        "usage: play <song name>.mp3\n"
+                                        "Note: name must match an existing file in your SD card\n",
+                                    .app_cli_handler = cli__play};
+
+  static app_cli__command_s pause = {.command_name = "pause",
+                                     .help_message_for_command = "Pauses current song that is playing\n"
+                                                                 "usage: pause\n"
+                                                                 "Note: A song must be currently playing\n",
+                                     .app_cli_handler = cli__pause};
+
   // Add your CLI commands in descending sorted order
   app_cli__add_command_handler(&sj2_cli_struct, &task_list);
   app_cli__add_command_handler(&sj2_cli_struct, &i2c);
   app_cli__add_command_handler(&sj2_cli_struct, &crash);
   app_cli__add_command_handler(&sj2_cli_struct, &suspend);
   app_cli__add_command_handler(&sj2_cli_struct, &resume);
+  app_cli__add_command_handler(&sj2_cli_struct, &play);
+  app_cli__add_command_handler(&sj2_cli_struct, &pause);
 
   // In case other tasks are hogging the CPU, it would be useful to run the CLI
   // at high priority to at least be able to see what is going on

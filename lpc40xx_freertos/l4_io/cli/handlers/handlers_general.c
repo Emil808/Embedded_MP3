@@ -1,6 +1,7 @@
 #include "cli_handlers.h"
 
 #include "FreeRTOS.h"
+#include "queue_manager.h"
 #include "task.h"
 
 #if (0 != configUSE_TRACE_FACILITY)
@@ -108,6 +109,35 @@ app_cli_status_e cli__resume(app_cli__argument_t argument, sl_string_t user_inpu
     vTaskResume(task_handle);
     sl_string__insert_at(task_name, 0, "Resuming ");
     cli_output(unused_cli_param, task_name);
+  }
+  return APP_CLI_STATUS__SUCCESS;
+}
+
+app_cli_status_e cli__play(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
+                           app_cli__print_string_function cli_output) {
+
+  sl_string_t song_name = user_input_minus_command_name;
+  void *unused_cli_param = NULL;
+
+  if (sl_string__ends_with(song_name, ".mp3") || sl_string__ends_with(song_name, ".txt")) {
+    xQueueSend(Song_Q, song_name, 20000);
+    sl_string__insert_at(song_name, 0, "Sent File Name: ");
+    cli_output(unused_cli_param, song_name);
+
+  } else {
+    sl_string__insert_at(song_name, 0, "File Name Invalid: ");
+  }
+
+  return APP_CLI_STATUS__SUCCESS;
+}
+
+app_cli_status_e cli__pause(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
+                            app_cli__print_string_function cli_output) {
+
+  void *unused_cli_param = NULL;
+
+  if (playback__is_playing()) {
+    playback__toggle_pause();
   }
   return APP_CLI_STATUS__SUCCESS;
 }

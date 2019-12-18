@@ -11,7 +11,7 @@
 #include "uart_printf.h"
 
 #include "uart_lab.h"
-
+#include <stdio.h>
 QueueHandle_t uart_data;
 
 void uart2_receive_data_handler() {
